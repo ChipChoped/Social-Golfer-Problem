@@ -1,5 +1,4 @@
-import minizinc
-from minizinc import Instance, Model, Solver
+from minizinc import Instance, Model, Solver, Result
 
 
 def print_solution(solution: list) -> None:
@@ -13,16 +12,16 @@ def print_solution(solution: list) -> None:
 
 
 def find_schedule(n_weeks: int, n_groups: int, n_participant: int) -> list:
-    model = Model("../model/model_1.mzn")
-    solver = Solver.lookup("gecode")
+    model: Model = Model("../model/model_1.mzn")
+    solver: Solver = Solver.lookup("gecode")
 
-    instance = Instance(solver, model)
+    instance: Instance = Instance(solver, model)
     instance["W"] = n_weeks
     instance["G"] = n_groups
     instance["P"] = n_participant
 
-    result = instance.solve()
-    solution = result.solution.S
+    result: Result = instance.solve()
+    solution: list = result.solution.S
 
     print_solution(solution)
 
