@@ -24,7 +24,6 @@ constraint forall(w in Weeks, g in Groups) (
 % All golfers play exactly one time in a week
 constraint forall(w in Weeks) (
     card(array_union([S[w,g] | g in Groups])) = Q
-
 );
 
 % Correspondence between M and S
