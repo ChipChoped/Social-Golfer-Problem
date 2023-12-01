@@ -13,7 +13,7 @@ def print_schedule(schedule: list) -> None:
         print()
 
 
-def find_schedule(n_weeks: int, n_groups: int, n_participant: int) -> list:
+def find_schedule(n_weeks: int, n_groups: int, n_participant: int, find_all_solutions: bool = True) -> list:
     model: Model = Model("../model/model_1.mzn")
     solver: Solver = Solver.lookup("gecode")
 
@@ -22,13 +22,17 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int) -> list:
     instance["G"] = n_groups
     instance["P"] = n_participant
 
-    result: Result = instance.solve()
-    solution: list = result.solution.S
+    result: Result = instance.solve(all_solutions=find_all_solutions)
+
+    if find_all_solutions:
+        solution: list = [result.solution[i].S for i in range(len(result.solution))]
+    else:
+        solution: list = result.solution.S
 
     return solution
 
 
-def verify_schedule(schedule: list, n_weeks: int, n_group: int, n_participant: int) -> bool:
+def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
     def find_subsets(set_: set, subset_size: int):
         return list(itertools.combinations(set_, subset_size))
 
@@ -61,11 +65,25 @@ def verify_schedule(schedule: list, n_weeks: int, n_group: int, n_participant: i
 
 
 def main() -> None:
-    schedule: list = find_schedule(5, 4, 4)
-    print_schedule(schedule)
+    n_weeks: int = 2
+    n_groups: int = 2
+    n_participant: int = 2
+    find_all_solutions: bool = True
 
-    schedule_is_valid: bool = verify_schedule(schedule, 5, 4, 4)
-    print("\nThe schedule is valid") if schedule_is_valid else print("The schedule is invalid")
+    schedule: list = find_schedule(n_weeks, n_groups, n_participant, find_all_solutions)
+
+    if find_all_solutions:
+        for i in range(len(schedule)):
+            print("Solution", i)
+            print_schedule(schedule[i])
+
+            schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participant)
+            print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
+    else:
+        print_schedule(schedule)
+
+        schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participant)
+        print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
 
 
 if __name__ == "__main__":
