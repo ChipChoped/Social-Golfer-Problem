@@ -26,15 +26,26 @@ constraint forall(w in Weeks) (
 
 );
 
+ % A golfer meets at most one time each golfer
+constraint forall(w1, w2 in Weeks where w1 <= w2) (
+    forall(g1 in Groups, g2 in Groups where w1 == w2 -> g1 < g2) (
+        card(S[w1,g1] intersect S[w2,g2]) <= 1
+    )
+);
+
 % Correspondence between M and S
+/*
 constraint forall(w in Weeks, g in Groups) (
     M[w*G+g] = S[w,g]
 );
+*/
 
 % A golfer meets at most one time each golfer
+/*
 constraint forall(m1 in 0..T-2, m2 in 1..T-1 where m1 < m2) (
     card(M[m1] intersect M[m2]) <= 1
 );
+*/
 
 % Symmetry-breaking constraint for the first week
 constraint forall(g in Groups) (
