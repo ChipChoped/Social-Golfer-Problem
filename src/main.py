@@ -1,3 +1,4 @@
+import argparse
 import itertools
 
 from minizinc import Instance, Model, Solver, Result
@@ -64,11 +65,15 @@ def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
     return True
 
 
-def main() -> None:
-    n_weeks: int = 2
-    n_groups: int = 2
-    n_participant: int = 2
-    find_all_solutions: bool = True
+def main(argv: argparse.Namespace) -> None:
+    n_weeks: int = argv.weeks
+    n_groups: int = argv.groups
+    n_participant: int = argv.participant
+
+    model: int = argv.model
+
+    find_all_solutions: bool = argv.all_solutions
+    check_validity: bool = argv.check_validity
 
     schedule: list = find_schedule(n_weeks, n_groups, n_participant, find_all_solutions)
 
@@ -77,14 +82,39 @@ def main() -> None:
             print("Solution", i)
             print_schedule(schedule[i])
 
-            schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participant)
-            print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
+            if check_validity:
+                schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participant)
+                print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
     else:
         print_schedule(schedule)
 
-        schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participant)
-        print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
+        if check_validity:
+            schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participant)
+            print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        prog='Social Golfer Problem Solver',
+        description='This solver finds one or multiple schedules for a social golfer problem instance')
+
+    parser.add_argument('-w', '--weeks', type=int, required=True,
+                        help="Number of weeks")
+    parser.add_argument('-g', '--groups', type=int, required=True,
+                        help="Number of groups")
+    parser.add_argument('-p', '--participant', type=int, required=True,
+                        help="Number of golfers per group")
+
+    parser.add_argument('-m', '--model', type=int, choices=[1, 2, 3], default=1,
+                        help="Model to use (1, 2 or 3)")
+
+    parser.add_argument('-a', '--all-solutions', action='store_true', default=False,
+                        help="Flag to find all solutions of an instance (False by default)")
+    parser.add_argument('-c', '--check-validity', action='store_true', default=False,
+                        help='Flag to check the validity of a schedule (False by default)')
+
+    args: argparse.Namespace = parser.parse_args()
+    print(args)
+    print()
+
+    main(args)
