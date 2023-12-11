@@ -119,6 +119,8 @@ def main(argv: argparse.Namespace) -> None:
     else:
         print("No solution found")
 
+    print("Number of solutions:",
+          len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
     print("Solving time:", flat_time.total_seconds(), "seconds")
 
     if log:
