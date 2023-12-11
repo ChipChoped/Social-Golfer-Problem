@@ -1,7 +1,8 @@
 import argparse
 import itertools
+from datetime import timedelta
 
-from minizinc import Instance, Model, Solver, Result
+from minizinc import Instance, Model, Solver, Result, Status
 
 
 def print_schedule(schedule: list) -> None:
@@ -14,8 +15,8 @@ def print_schedule(schedule: list) -> None:
         print()
 
 
-def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int,
-                  symmetry_breaking: bool, find_all_solutions: bool) -> list:
+def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, symmetry_breaking: bool,
+                  find_all_solutions: bool) -> tuple[list, Status, timedelta]:
     model: Model = Model("../model/model_" + str(model) + ".mzn") if not symmetry_breaking \
         else Model("../model/model_" + str(model) + "_symmetry.mzn")
     solver: Solver = Solver.lookup("gecode")
@@ -27,12 +28,14 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int,
 
     result: Result = instance.solve(all_solutions=find_all_solutions)
 
-    if find_all_solutions:
+    if result.status == Status.ALL_SOLUTIONS:
         solution: list = [result.solution[i].S for i in range(len(result.solution))]
-    else:
+    elif result.status == Status.SATISFIED:
         solution: list = result.solution.S
+    else:
+        solution: list = []
 
-    return solution
+    return solution, result.status, result.statistics['flatTime']
 
 
 def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
@@ -78,9 +81,10 @@ def main(argv: argparse.Namespace) -> None:
     find_all_solutions: bool = argv.all_solutions
     check_validity: bool = argv.check_validity
 
-    schedule: list = find_schedule(n_weeks, n_groups, n_participant, model, symmetry_breaking, find_all_solutions)
+    schedule, status, time = find_schedule(n_weeks, n_groups, n_participant, model,
+                                           symmetry_breaking, find_all_solutions)
 
-    if find_all_solutions:
+    if status == Status.ALL_SOLUTIONS:
         for i in range(len(schedule)):
             print("Solution", i)
             print_schedule(schedule[i])
@@ -88,12 +92,16 @@ def main(argv: argparse.Namespace) -> None:
             if check_validity:
                 schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participant)
                 print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
-    else:
+    elif status == Status.SATISFIED:
         print_schedule(schedule)
 
         if check_validity:
             schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participant)
             print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
+    else:
+        print("No solution found")
+
+    print("Solving time:", time.total_seconds(), "seconds")
 
 
 if __name__ == "__main__":
