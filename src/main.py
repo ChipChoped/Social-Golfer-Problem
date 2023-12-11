@@ -73,7 +73,7 @@ def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
 def main(argv: argparse.Namespace) -> None:
     n_weeks: int = argv.weeks
     n_groups: int = argv.groups
-    n_participant: int = argv.participant
+    n_participants: int = argv.participants
 
     model: int = argv.model
 
@@ -81,7 +81,7 @@ def main(argv: argparse.Namespace) -> None:
     find_all_solutions: bool = argv.all_solutions
     check_validity: bool = argv.check_validity
 
-    schedule, status, time = find_schedule(n_weeks, n_groups, n_participant, model,
+    schedule, status, time = find_schedule(n_weeks, n_groups, n_participants, model,
                                            symmetry_breaking, find_all_solutions)
 
     if status == Status.ALL_SOLUTIONS:
@@ -90,13 +90,13 @@ def main(argv: argparse.Namespace) -> None:
             print_schedule(schedule[i])
 
             if check_validity:
-                schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participant)
+                schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participants)
                 print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
     elif status == Status.SATISFIED:
         print_schedule(schedule)
 
         if check_validity:
-            schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participant)
+            schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participants)
             print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
     else:
         print("No solution found")
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                         help="Number of weeks")
     parser.add_argument('-g', '--groups', type=int, required=True,
                         help="Number of groups")
-    parser.add_argument('-p', '--participant', type=int, required=True,
+    parser.add_argument('-p', '--participants', type=int, required=True,
                         help="Number of golfers per group")
 
     parser.add_argument('-m', '--model', type=int, choices=[1, 2, 3], default=1,
