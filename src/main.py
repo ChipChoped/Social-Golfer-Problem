@@ -14,7 +14,7 @@ def print_schedule(schedule: list) -> None:
         print()
 
 
-def find_schedule(n_weeks: int, n_groups: int, n_participant: int) -> list:
+def find_schedule(n_weeks: int, n_groups: int, n_participant: int, find_all_solutions: bool) -> list:
     model: Model = Model("../model/model_1.mzn")
     solver: Solver = Solver.lookup("gecode")
 
@@ -23,13 +23,17 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int) -> list:
     instance["G"] = n_groups
     instance["P"] = n_participant
 
-    result: Result = instance.solve()
-    solution: list = result.solution.S
+    result: Result = instance.solve(all_solutions=find_all_solutions)
+
+    if find_all_solutions:
+        solution: list = [result.solution[i].S for i in range(len(result.solution))]
+    else:
+        solution: list = result.solution.S
 
     return solution
 
 
-def verify_schedule(schedule: list, n_weeks: int, n_group: int, n_participant: int) -> bool:
+def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
     def find_subsets(set_: set, subset_size: int):
         return list(itertools.combinations(set_, subset_size))
 
