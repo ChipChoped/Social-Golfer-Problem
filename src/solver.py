@@ -1,12 +1,15 @@
+import random
+
 class GolferConstraintSolver:
     def __init__(self, W, G, P):
         self.W = W
         self.G = G
         self.P = P
-
         self.schedule = [[ [] for _ in range(G)]for _ in range(W)]
         self.domains = [[set(range(G*P)) for _ in range(G)]for _ in range(W)]
+        self.rencontres = {i: set() for i in range(self.P*self.G)}
         self.constraints = []
+        self.consistence = True
 
     def __str__(self) -> str:
         result = ""
@@ -27,12 +30,164 @@ class GolferConstraintSolver:
         # reduction domaine
         print("W: "+str(self.W)+"\nG: "+str(self.G)+"\nP: "+str(self.P)+"\n")
         self.propagate_constraints()
-        self.glouton()
-        # algo de recherche (ex. glouton)
+        if self.consistence:
+            self.glouton()
+            self.local_search()
+
     
+    def updateDomains(self,w,g,p):
+
+        for group in range(g+1,self.G):
+            self.domains[w][group]-={p}
+
+        for player in range(0,self.G*self.P):
+            for week in range(1,self.W):
+                for group in range(0,self.G):
+                    if player in self.schedule[week][group]:
+                        to_remove = self.rencontres[player].copy()
+                        for player2 in self.schedule[week][group]:
+                            to_remove-={player2}
+                        self.domains[week][group]-=to_remove
+
+
     def glouton(self):
-        #algo de rercherche
+        
+        print(" ---------- Glouton ---------- \n")
+        for i in range(0,self.G*self.P):
+            for week in range(0,self.W):
+                for group in range(0,self.G):
+                    if i in self.schedule[week][group]:
+                        for player in self.schedule[week][group]:
+                            if player != i:
+                                self.rencontres[i].add(player)
+
+        # Remplis le schedule en respectant les contrainte et en mettant a jour les domaines
+        # Le tableau peut ne pas etre complet
+        for week in range(0,self.W):
+            for group in range(0,self.G):
+                len_group = len(self.schedule[week][group])
+                if len_group == self.P:
+                       pass
+                else:
+                    for i in range(len_group,self.P):
+                        if i<len(self.domains[week][group]):
+                            player = list(self.domains[week][group])[i]
+                            for player2 in self.schedule[week][group]:
+                                self.rencontres[player].add(player2)
+                                self.rencontres[player2].add(player)
+                            self.schedule[week][group].append(player)
+                            self.updateDomains(week,group,player)
+
+        print("Tableau incomplet mais contrainte repecté\n")
+        result = ""
+        for w in range(self.W):
+            result += str(self.schedule[w][:]) + "\n"
+        print(result)
+
+        # Complete le tableau incomplet et donne une soluition invalide
+        all_players = [i for i in range(self.G*self.P)]
+        for week in range(0,self.W):
+            tab = []
+            for group in range(0,self.G):
+                tab += self.schedule[week][group]
+            tab = list(set(all_players) - set(tab))
+            for group in range(0,self.G):
+                while len(self.schedule[week][group])<self.P:
+                    self.schedule[week][group].append(tab.pop())
+        
+        print("Tableau completé aléatoirement mais contrainte non repecté\n")
+        result = ""
+        for w in range(self.W):
+            result += str(self.schedule[w][:]) + "\n"
+        print(result)
+
+
+    
+    def check_constraints(self,schedule):
+        # Vérifier si chaque équipe joue au plus une fois contre une autre équipe
+        list_groups = []
+        for week in schedule:
+            for group in week:
+                list_groups.append(group)
+
+        for g1 in range(self.W*self.G-1):
+            for g2 in range(g1+1 , self.W*self.G):
+                intersect = set(list_groups[g1]) & set(list_groups[g2])
+                if len(intersect) > 1:
+                    return False
+                    
+        for week in schedule:
+            teams_played = set()
+            for period in week:
+                teams_played |=  set(period)
+                if len(period)!=self.P:
+                    return False
+            if len(teams_played)!=self.G*self.P:
+                return False
+
         return True
+
+    def cost(self,schedule):
+        pena=0
+        list_groups = []
+        for week in schedule:
+            for group in week:
+                list_groups.append(group)
+
+        for g1 in range(self.W*self.G-1):
+            for g2 in range(g1+1 , self.W*self.G):
+                intersect = set(list_groups[g1]) & set(list_groups[g2])
+                if len(intersect) > 1:
+                    pena+=1
+                    
+        for week in schedule:
+            teams_played = set()
+            for period in week:
+                teams_played |=  set(period)
+                if len(period)!=self.P:
+                    pena+=1
+            if len(teams_played)!=self.G*self.P:
+                pena+=1
+
+        return pena
+
+    def local_search(self, max_iterations=100000):
+        print(" ---------- Recherche local ---------- \n")
+        current_schedule = self.schedule
+        current_cost = self.cost(current_schedule)
+        iteration = 0
+        trouver = False
+        while iteration != max_iterations and trouver == False :
+            iteration+=1
+            # Sélectionner un voisin aléatoire en échangeant deux équipes dans une période aléatoire
+            new_schedule = [week[:] for week in current_schedule]
+            week_to_change = random.randint(1, self.W - 1)
+            period_to_change_1,period_to_change_2 = random.sample(range(0, self.P),2)
+            teams_1 = random.choice(new_schedule[week_to_change][period_to_change_1][1:])
+            teams_2 = random.choice(new_schedule[week_to_change][period_to_change_2][1:])
+            
+            new_schedule[week_to_change][period_to_change_1].remove(teams_1)
+            new_schedule[week_to_change][period_to_change_2].remove(teams_2)
+            new_schedule[week_to_change][period_to_change_1].append(teams_2)
+            new_schedule[week_to_change][period_to_change_2].append(teams_1)
+            new_cost = self.cost(new_schedule)
+
+            # Accepter le voisin si le coût diminue ou avec une certaine probabilité
+            if new_cost < current_cost:
+                current_schedule = new_schedule
+                current_cost = new_cost
+
+            # Vérifier si la solution actuelle respecte les contraintes
+            if self.check_constraints(current_schedule):
+                print("Solution trouvée après", iteration, "itérations \n")
+                trouver = True
+
+        if trouver == False:
+            print("Aucune solution trouvée après", max_iterations, "itérations \n")
+        result = ""
+        for w in range(self.W):
+            result += str(current_schedule[w][:]) + "\n"
+        print(result)
 
 class PPlayerPerGroupConstraint:
     def __init__(self, golfer_solver):
@@ -56,6 +211,7 @@ class PPlayerPerGroupConstraint:
         print(self.golfer_solver)
         print("Check cardinalité consistence = "+str(res)+"\n")
         if res == False:
+            self.golfer_solver.consistence=False
             print("Pas de soluition")
     
 class Week_constraint:
@@ -72,6 +228,7 @@ class Week_constraint:
                 res= False
         print("Check week consistence = "+str(res)+"\n")
         if res == False:
+            self.golfer_solver.consistence=False
             print("Pas de soluition")   
 
 class SymetrieFixSem1:
@@ -81,6 +238,7 @@ class SymetrieFixSem1:
     def propagate(self,domains):
         # Fix la upremière semaine
         for group in range(self.golfer_solver.G):
+            self.golfer_solver.schedule[0][group] = [i for i in range(group * self.golfer_solver.P, (group + 1) * self.golfer_solver.P)]
             domains[0][group] = set((range(group * self.golfer_solver.P, (group + 1) * self.golfer_solver.P)))
         print("Symetrie premiere semaine fix:\n")
         print(self.golfer_solver)
@@ -95,6 +253,7 @@ class SymetrieFixFirstPlayer:
         for week in range(1, self.golfer_solver.W):
             for group in range(self.golfer_solver.G):
                 if group < self.golfer_solver.P:
+                    self.golfer_solver.schedule[week][group].append(group)
                     group1.remove(group)
                     domains[week][group]-=group1
                     group1.add(group)
@@ -132,7 +291,10 @@ class SymetrieMinMaxFirstGroup:
 
 
 
-solver = GolferConstraintSolver(W=3, G=2, P=3)
+
+# 4 2 2 -> impossible
+
+solver = GolferConstraintSolver(W=4, G=3, P=3)
 
 symetrie_fix_sem_1 = SymetrieFixSem1(solver)
 symetrie_fix_first_player = SymetrieFixFirstPlayer(solver)
