@@ -12,7 +12,7 @@ set of int: Golfers = 0..Q-1;
 set of int: Weeks = 0..W-1;
 set of int: Groups = 0..G-1;
 array[Weeks, Groups] of var set of Golfers: S; % The schedule matrix
-array[0..T-1] of var set of Golfers: M; % The array of all match, corresponding to the matrix S transformed in 1D array matrix
+% array[0..T-1] of var set of Golfers: M; % The array of all match, corresponding to the matrix S transformed in 1D array matrix
 
 % Constraints
 % P golfers per group
