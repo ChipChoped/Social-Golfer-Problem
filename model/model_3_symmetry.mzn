@@ -4,15 +4,12 @@ int: W; % The number of weeks
 int: G; % The number of groups
 int: P; % The number of golfers per group
 
-
 % Variables
 int: Q = G * P; % The number of golfers
-int: T = W * G; % The number of matches
 set of int: Golfers = 0..Q-1;
 set of int: Weeks = 0..W-1;
 set of int: Groups = 0..G-1;
 array[Weeks, Groups] of var set of Golfers: S; % The schedule matrix
-array[0..T-1] of var set of Golfers: M; % The array of all match, corresponding to the matrix S transformed in 1D array matrix
 
 % Constraints
 % P golfers per group
@@ -26,24 +23,11 @@ constraint forall(w in Weeks) (
 
 );
 
- % A golfer meets at most one time each golfer
-constraint forall(w1, w2 in Weeks where w1 <= w2) (
-    forall(g1 in Groups, g2 in Groups where w1 == w2 -> g1 < g2) (
-        card(S[w1,g1] intersect S[w2,g2]) <= 1
-    )
-);
-
-/*
-% Correspondence between M and S
-constraint forall(w in Weeks, g in Groups) (
-    M[w*G+g] = S[w,g]
-);
-
 % A golfer meets at most one time each golfer
-constraint forall(m1 in 0..T-2, m2 in 1..T-1 where m1 < m2) (
-    card(M[m1] intersect M[m2]) <= 1
+constraint forall(q1, q2 in Golfers where q1 < q2) (
+    sum(w in Weeks, g in Groups)(min(P, card(S[w, g] symdiff {q1, q2}))) >= G * P * W -2
 );
-*/
+
 
 % Symmetry-breaking constraint for the first week
 constraint forall(g in Groups) (
@@ -61,6 +45,3 @@ constraint forall(w in 1..W-1) (
 
 % Solve
 solve satisfy;
-
-% Output
-

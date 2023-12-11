@@ -1,5 +1,4 @@
 % The Social Golfer Problem
-
 % Parameters
 int: W; % The number of weeks
 int: G; % The number of groups
@@ -24,6 +23,7 @@ constraint forall(w in Weeks, g in Groups) (
 % All golfers play exactly one time in a week
 constraint forall(w in Weeks) (
     card(array_union([S[w,g] | g in Groups])) = Q
+
 );
 
  % A golfer meets at most one time each golfer
@@ -45,10 +45,22 @@ constraint forall(m1 in 0..T-2, m2 in 1..T-1 where m1 < m2) (
 );
 */
 
+% Symmetry-breaking constraint for the first week
+constraint forall(g in Groups) (
+    forall(i in 0..P-1) (
+        S[0, g] = S[0, g] union {g*P + i}
+    )
+);
+
+% Symmetry-breaking constraint for the first player of all group after week 0
+constraint forall(w in 1..W-1) (
+    forall(g in Groups where g<P) (
+          S[w, g] intersect {g} = {g} 
+    )
+);
+
 % Solve
 solve satisfy;
 
 % Output
-% output [
-%      show(S[w,g])++" | "++ if g==G-1 then "\n" endif | w in Weeks, g in Groups
-% ];
+

@@ -1,7 +1,11 @@
 import argparse
 import itertools
+import sys
+import time
+from datetime import timedelta
+from typing import TextIO
 
-from minizinc import Instance, Model, Solver, Result
+from minizinc import Instance, Model, Solver, Result, Status
 
 
 def print_schedule(schedule: list) -> None:
@@ -14,8 +18,10 @@ def print_schedule(schedule: list) -> None:
         print()
 
 
-def find_schedule(n_weeks: int, n_groups: int, n_participant: int, find_all_solutions: bool) -> list:
-    model: Model = Model("../model/model_1.mzn")
+def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, symmetry_breaking: bool,
+                  find_all_solutions: bool) -> tuple[list, Status, timedelta]:
+    model: Model = Model("../model/model_" + str(model) + ".mzn") if not symmetry_breaking \
+        else Model("../model/model_" + str(model) + "_symmetry.mzn")
     solver: Solver = Solver.lookup("gecode")
 
     instance: Instance = Instance(solver, model)
@@ -25,12 +31,14 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int, find_all_solu
 
     result: Result = instance.solve(all_solutions=find_all_solutions)
 
-    if find_all_solutions:
+    if result.status == Status.ALL_SOLUTIONS:
         solution: list = [result.solution[i].S for i in range(len(result.solution))]
-    else:
+    elif result.status == Status.SATISFIED:
         solution: list = result.solution.S
+    else:
+        solution: list = []
 
-    return solution
+    return solution, result.status, result.statistics['flatTime']
 
 
 def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
@@ -68,29 +76,56 @@ def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
 def main(argv: argparse.Namespace) -> None:
     n_weeks: int = argv.weeks
     n_groups: int = argv.groups
-    n_participant: int = argv.participant
+    n_participants: int = argv.participants
 
     model: int = argv.model
 
+    symmetry_breaking: bool = argv.symmetry_breaking
     find_all_solutions: bool = argv.all_solutions
     check_validity: bool = argv.check_validity
+    log: bool = argv.log
 
-    schedule: list = find_schedule(n_weeks, n_groups, n_participant, find_all_solutions)
+    schedule, status, flat_time = find_schedule(n_weeks, n_groups, n_participants, model,
+                                                symmetry_breaking, find_all_solutions)
 
-    if find_all_solutions:
+    if log:
+        current_time: str = str(time.strftime("%Y-%m-%d_%H-%M-%S"))
+
+        symmetry: str = "_sym" if symmetry_breaking else ""
+        all_solutions: str = "_all" if find_all_solutions else ""
+
+        file: TextIO = open("../log/solution" +
+                            "_w" + str(n_weeks) + "_g" + str(n_groups) + "_p" + str(n_participants) +
+                            symmetry + all_solutions + "_" + current_time + ".txt", "a")
+
+        default_stdout = sys.stdout
+        sys.stdout = file
+
+    if status == Status.ALL_SOLUTIONS:
         for i in range(len(schedule)):
-            print("Solution", i)
+            print("Solution", i + 1, "\n")
             print_schedule(schedule[i])
 
             if check_validity:
-                schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participant)
+                schedule_is_valid: bool = verify_schedule(schedule[i], n_groups, n_participants)
                 print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
-    else:
+    elif status == Status.SATISFIED:
+        print("Solution\n")
         print_schedule(schedule)
 
         if check_validity:
-            schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participant)
+            schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participants)
             print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
+    else:
+        print("No solution found")
+
+    print("Number of solutions:",
+          len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
+    print("Solving time:", flat_time.total_seconds(), "seconds")
+
+    if log:
+        file.close()
+        sys.stdout = default_stdout
 
 
 if __name__ == "__main__":
@@ -102,16 +137,20 @@ if __name__ == "__main__":
                         help="Number of weeks")
     parser.add_argument('-g', '--groups', type=int, required=True,
                         help="Number of groups")
-    parser.add_argument('-p', '--participant', type=int, required=True,
+    parser.add_argument('-p', '--participants', type=int, required=True,
                         help="Number of golfers per group")
 
     parser.add_argument('-m', '--model', type=int, choices=[1, 2, 3], default=1,
                         help="Model to use (1, 2 or 3)")
 
+    parser.add_argument('-s', '--symmetry-breaking', action='store_true', default=False,
+                        help="Flag to use symmetry breaking (False by default)")
     parser.add_argument('-a', '--all-solutions', action='store_true', default=False,
                         help="Flag to find all solutions of an instance (False by default)")
     parser.add_argument('-c', '--check-validity', action='store_true', default=False,
                         help='Flag to check the validity of a schedule (False by default)')
+    parser.add_argument('-l', '--log', action='store_true', default=False,
+                        help='Flag to log the solver output (False by default)')
 
     args: argparse.Namespace = parser.parse_args()
     print(args)
