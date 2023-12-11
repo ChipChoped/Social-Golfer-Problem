@@ -14,8 +14,10 @@ def print_schedule(schedule: list) -> None:
         print()
 
 
-def find_schedule(n_weeks: int, n_groups: int, n_participant: int, find_all_solutions: bool) -> list:
-    model: Model = Model("../model/model_1.mzn")
+def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int,
+                  symmetry_breaking: bool, find_all_solutions: bool) -> list:
+    model: Model = Model("../model/model_" + str(model) + ".mzn") if not symmetry_breaking \
+        else Model("../model/model_" + str(model) + "_symmetry.mzn")
     solver: Solver = Solver.lookup("gecode")
 
     instance: Instance = Instance(solver, model)
@@ -72,10 +74,11 @@ def main(argv: argparse.Namespace) -> None:
 
     model: int = argv.model
 
+    symmetry_breaking: bool = argv.symmetry_breaking
     find_all_solutions: bool = argv.all_solutions
     check_validity: bool = argv.check_validity
 
-    schedule: list = find_schedule(n_weeks, n_groups, n_participant, find_all_solutions)
+    schedule: list = find_schedule(n_weeks, n_groups, n_participant, model, symmetry_breaking, find_all_solutions)
 
     if find_all_solutions:
         for i in range(len(schedule)):
@@ -108,6 +111,8 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--model', type=int, choices=[1, 2, 3], default=1,
                         help="Model to use (1, 2 or 3)")
 
+    parser.add_argument('-s', '--symmetry-breaking', action='store_true', default=False,
+                        help="Flag to use symmetry breaking (False by default)")
     parser.add_argument('-a', '--all-solutions', action='store_true', default=False,
                         help="Flag to find all solutions of an instance (False by default)")
     parser.add_argument('-c', '--check-validity', action='store_true', default=False,
