@@ -127,6 +127,10 @@ def main(argv: argparse.Namespace) -> None:
         file.close()
         sys.stdout = default_stdout
 
+        print("Number of solutions:",
+              len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
+        print("Solving time:", flat_time.total_seconds(), "seconds")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
