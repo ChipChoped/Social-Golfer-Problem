@@ -35,13 +35,11 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, s
 
     result: Result = instance.solve(all_solutions=find_all_solutions, timeout=timeout)
 
-    if result.status == Status.ALL_SOLUTIONS:
+    if result.status == Status.ALL_SOLUTIONS \
+            or (result.status == Status.SATISFIED and find_all_solutions):
         solution: list = [result.solution[i].S for i in range(len(result.solution))]
     elif result.status == Status.SATISFIED and not find_all_solutions:
         solution: list = result.solution.S
-    elif result.status == Status.SATISFIED and find_all_solutions:
-        solution: list = []
-        result.status = Status.UNKNOWN
     else:
         solution: list = []
 
@@ -114,7 +112,12 @@ def main(argv: argparse.Namespace) -> None:
         default_stdout = sys.stdout
         sys.stdout = file
 
-    if status == Status.ALL_SOLUTIONS:
+    if find_all_solutions and (status == Status.ALL_SOLUTIONS or status == Status.SATISFIED):
+        if status == Status.ALL_SOLUTIONS:
+            print("All solutions were found\n")
+        else:
+            print("Timeout reached\nNot all solutions were found in time\n")
+
         for i in range(len(schedule)):
             print("Solution", i + 1, "\n")
             print_schedule(schedule[i])
@@ -129,13 +132,14 @@ def main(argv: argparse.Namespace) -> None:
         if check_validity:
             schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participants)
             print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
-    elif status == Status.UNKNOWN:
-        print("Timeout reached\n")
     else:
         print("No solution found\n")
 
-    print("Number of solutions:",
-          len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
+    print("Number of solutions found:",
+          len(schedule)
+          if find_all_solutions
+          else 1 if status == Status.SATISFIED
+          else 0)
     print("Solving time:", round(solving_time.total_seconds(), 3), "seconds")
 
     if log:
@@ -143,12 +147,15 @@ def main(argv: argparse.Namespace) -> None:
         sys.stdout = default_stdout
 
         if status == Status.UNKNOWN:
-            print("Timeout reached\n")
-        else:
+            print("Timeout reached\nNot all solutions were found in time\n")
+        elif status == Status.UNSATISFIABLE:
             print("No solution found\n")
 
-        print("Number of solutions:",
-              len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
+        print("Number of solutions found:",
+              len(schedule)
+              if find_all_solutions
+              else 1 if status == Status.SATISFIED
+              else 0)
         print("Solving time:", round(solving_time.total_seconds(), 3), "seconds")
 
 
