@@ -23,7 +23,7 @@ def print_schedule(schedule: list) -> None:
 
 
 def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, symmetry_breaking: bool,
-                  find_all_solutions: bool, timeout: timedelta) -> tuple[list, Status, int]:
+                  find_all_solutions: bool, timeout: timedelta) -> tuple[list, Status, timedelta]:
     model: Model = Model("../model/model_" + str(model) + ".mzn") if not symmetry_breaking \
         else Model("../model/model_" + str(model) + "_symmetry.mzn")
     solver: Solver = Solver.lookup("gecode")
@@ -35,30 +35,18 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, s
 
     result: Result = instance.solve(all_solutions=find_all_solutions, timeout=timeout)
 
-    try:
-        if timeout is not None:
-            if result.statistics['time'] < timeout.total_seconds() * 1000:
-                if result.status == Status.ALL_SOLUTIONS:
-                    solution: list = [result.solution[i].S for i in range(len(result.solution))]
-                elif result.status == Status.SATISFIED:
-                    solution: list = result.solution.S
-                else:
-                    solution: list = []
-            else:
-                solution: list = []
-                result.status = Status.UNKNOWN
-        else:
-            if result.status == Status.ALL_SOLUTIONS:
-                solution: list = [result.solution[i].S for i in range(len(result.solution))]
-            elif result.status == Status.SATISFIED:
-                solution: list = result.solution.S
-            else:
-                solution: list = []
-    except KeyError:
+    if result.status == Status.ALL_SOLUTIONS:
+        solution: list = [result.solution[i].S for i in range(len(result.solution))]
+    elif result.status == Status.SATISFIED and not find_all_solutions:
+        solution: list = result.solution.S
+    elif result.status == Status.SATISFIED and find_all_solutions:
         solution: list = []
-        return solution, Status.UNKNOWN, 0
+        result.status = Status.UNKNOWN
+    else:
+        solution: list = []
 
-    return solution, result.status, result.statistics['time']
+    return (solution, result.status,
+            result.statistics['flatTime'] + result.statistics['initTime'] + result.statistics['solveTime'])
 
 
 def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
@@ -148,15 +136,20 @@ def main(argv: argparse.Namespace) -> None:
 
     print("Number of solutions:",
           len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
-    print("Solving time:", solving_time / 1000, "seconds")
+    print("Solving time:", round(solving_time.total_seconds(), 3), "seconds")
 
     if log:
         file.close()
         sys.stdout = default_stdout
 
+        if status == Status.UNKNOWN:
+            print("Timeout reached\n")
+        else:
+            print("No solution found\n")
+
         print("Number of solutions:",
               len(schedule) if status == Status.ALL_SOLUTIONS else 1 if status == Status.SATISFIED else 0)
-        print("Solving time:", solving_time / 1000, "seconds")
+        print("Solving time:", round(solving_time.total_seconds(), 3), "seconds")
 
 
 if __name__ == "__main__":
