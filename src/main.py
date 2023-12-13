@@ -107,7 +107,7 @@ def main(argv: argparse.Namespace) -> None:
         Path("../log").mkdir(parents=True, exist_ok=True)
         file: TextIO = open("../log/solution" +
                             "_w" + str(n_weeks) + "_g" + str(n_groups) + "_p" + str(n_participants) +
-                            symmetry + all_solutions + "_" + current_time + ".txt", "a")
+                            "_m" + str(model) + symmetry + all_solutions + "_" + current_time + ".txt", "a")
 
         default_stdout = sys.stdout
         sys.stdout = file
