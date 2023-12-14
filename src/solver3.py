@@ -1,3 +1,13 @@
+import argparse
+import itertools
+import sys
+import time
+
+from datetime import datetime
+from datetime import timedelta
+from pathlib import Path
+from typing import TextIO
+
 import random
 import copy
 class GolferConstraintSolver:
@@ -34,7 +44,9 @@ class GolferConstraintSolver:
         for constraint in self.constraints:
             constraint.propagate(self.domains)
         
-    def solve(self):
+    def solve(self, time_delta):
+        limit_time = datetime.now() + time_delta
+        start_time = datetime.now()
         # reduction domaine
         print("W: "+str(self.W)+"\nG: "+str(self.G)+"\nP: "+str(self.P)+"\n")
         self.propagate_constraints()
@@ -42,15 +54,13 @@ class GolferConstraintSolver:
  
         res_final=True
         self.printDomains()
+        
         if self.consistence:
-            res_final=self.forwardCheking(0,0,0)
-            if res_final:
-                print("Solution trouve:\n")
-                self.printSchedule()
-            else:
-                print("Aucune solution trouve:\n")
+            res_final=self.forwardCheking(0,0,0, limit_time)  
+            print(res_final)          
+            return res_final[0], datetime.now()-start_time           
         else:
-            print("Pas de soluition")   
+            return -1, datetime.now() - start_time 
 
         
 
@@ -86,23 +96,25 @@ class GolferConstraintSolver:
                             to_remove-={player2}
                         self.domains[week][group]-=to_remove
 
-    def forwardCheking(self,week,group,player):
+    def forwardCheking(self,week,group,player, time_limit):
         
         print(" ---------- Forward Cheking ",week," ",group," ",player, "----------\n")
         self.printSchedule()
-    
+        print(str(time_limit) + " "+ str( datetime.now()))
         if week == self.W :
-            return True  # La solution est trouvée
-        
+            return 1, datetime.now()  # La solution est trouvée
+        if datetime.now() > time_limit:
+            print("je retourne")
+            return 2, datetime.now()
         if group < self.G-1 and player == self.P:
-            return self.forwardCheking(week, group+1, 0)  # Passage au groupe suivant
+            return self.forwardCheking(week, group+1, 0, time_limit)  # Passage au groupe suivant
 
         if group == self.G-1 and player == self.P:
-            return self.forwardCheking(week + 1, 0,0)  # Passage à la semaine suivante
+            return self.forwardCheking(week + 1, 0,0, time_limit)  # Passage à la semaine suivante
 
         
         if player < len(self.schedule[week][group]):
-                return self.forwardCheking(week, group ,player+1) # Passage au joueur suivant
+                return self.forwardCheking(week, group ,player+1, time_limit) # Passage au joueur suivant
         
         # recupere le dernier joueur placer dans le group
         last_player=-1
@@ -120,14 +132,17 @@ class GolferConstraintSolver:
                     self.schedule[week][group].append(p)
                     self.updateDomains()
                     # On passe au joueur suivant par recursivité
-                    if self.forwardCheking(week, group , player+1):  # Récursion
-                        return True
+                    res = self.forwardCheking(week, group , player+1, time_limit)
+                    if res[0] == 1:  # Récursion                        
+                        return 1, datetime.now()
+                    elif res[0] == 2:
+                        return 2, datetime.now()
                     
                     # Si inconsistence dans les prochain joueurs on suprime et on met a jour les domaines
                     self.schedule[week][group].remove(p)
                     self.updateDomains()
-            
-        return False  # Aucune assignation valide pour cette variable
+        
+        return 0, datetime.now()  # Aucune assignation valide pour cette variable
             
 
     def isConsistent(self,w,g,p):
@@ -280,19 +295,92 @@ class SymetrieMinMaxFirstGroup:
             self.golfer_solver.consistence=False
         self.golfer_solver.printDomains()
 
+def main (argv: argparse.Namespace) -> None:
+    W : int = argv.weeks
+    G : int = argv.groups
+    P : int = argv.participants
+    symetry_breaking_bool: bool = argv.symmetry_breaking
+    timeout: timedelta = timedelta(seconds=argv.timeout) \
+        if argv.timeout is not None or argv.tiemut == 0 \
+        else None
+    
+    check_validity: bool = argv.check_validity
+    log: bool = argv.log    
 
-solver = GolferConstraintSolver(W=4, G=4, P=4)
+    solver = GolferConstraintSolver(W, G, P)    
+    symetrie_fix_sem_1 = SymetrieFixSem1(solver)
+    symetrie_fix_first_player = SymetrieFixFirstPlayer(solver)
+    symetrie_min_max = SymetrieMinMaxFirstGroup(solver)
+    if symetry_breaking_bool :
+        solver.add_constraint(symetrie_fix_sem_1)
+        solver.add_constraint(symetrie_fix_first_player)
+        solver.add_constraint(symetrie_min_max)
 
-symetrie_fix_sem_1 = SymetrieFixSem1(solver)
-symetrie_fix_first_player = SymetrieFixFirstPlayer(solver)
-symetrie_min_max = SymetrieMinMaxFirstGroup(solver)
-solver.add_constraint(symetrie_fix_sem_1)
-solver.add_constraint(symetrie_fix_first_player)
-solver.add_constraint(symetrie_min_max)
+    constraint_P_player_per_group = PPlayerPerGroupConstraint(solver)
+    constraint_week = Week_constraint(solver)
+    solver.add_constraint(constraint_P_player_per_group)
+    solver.add_constraint(constraint_week)
 
-constraint_P_player_per_group = PPlayerPerGroupConstraint(solver)
-constraint_week = Week_constraint(solver)
-solver.add_constraint(constraint_P_player_per_group)
-solver.add_constraint(constraint_week)
+    status, solving_time= solver.solve(timeout)    
 
-solver.solve()
+    if log:
+        current_time: str = str(time.strftime("%Y-%m-%d_%H-%M-%S"))
+
+        symmetry: str = "_sym" if symetry_breaking_bool else ""        
+
+        Path("../log").mkdir(parents=True, exist_ok=True)
+        file: TextIO = open("../log/solution" +
+                            "_w" + str(W) + "_g" + str(G) + "_p" + str(P) +
+                            symmetry +  "_" + current_time + ".txt", "a")
+
+        default_stdout = sys.stdout
+        sys.stdout = file
+    if status == 1:
+        print("Solution\n")
+        solver.printSchedule()
+        if check_validity:
+            schedule_is_valid: bool = solver.isConsistent()
+            print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
+    elif status == 2:
+        print("Timeout reached\n")
+    else:
+        print("No solution found\n")
+    print("Solving time:", round(solving_time.total_seconds(),3), "seconds")
+
+    if log:
+        file.close()
+        sys.stdout == default_stdout
+
+        if status == 2:
+            print("Timeout reached\n")
+        elif status <= 0:
+            print("No solution found\n")
+        print("solving time:", round(solving_time.total_seconds(), 3), "seconds")
+
+        
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog='Social Golfer Problem Solver',
+        description='This solver finds one or multiple schedules for a social golfer problem instance')
+
+    parser.add_argument('-w', '--weeks', type=int, required=True,
+                        help="Number of weeks")
+    parser.add_argument('-g', '--groups', type=int, required=True,
+                        help="Number of groups")
+    parser.add_argument('-p', '--participants', type=int, required=True,
+                        help="Number of golfers per group")
+    parser.add_argument('-s', '--symmetry-breaking', action='store_true', default=False,
+                        help="Flag to use symmetry breaking (False by default)")
+    parser.add_argument('-t', '--timeout', type=int, default=None,
+                        help="Timeout in seconds (None by default)")
+
+    parser.add_argument('-c', '--check-validity', action='store_true', default=False,
+                        help='Flag to check the validity of a schedule (False by default)')
+    parser.add_argument('-l', '--log', action='store_true', default=False,
+                        help='Flag to log the solver output (False by default)')
+
+    args: argparse.Namespace = parser.parse_args()
+    print(args)
+    print()
+
+    main(args)
