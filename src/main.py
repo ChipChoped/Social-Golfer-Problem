@@ -133,6 +133,8 @@ def main(argv: argparse.Namespace) -> None:
             schedule_is_valid: bool = verify_schedule(schedule, n_groups, n_participants)
             print("\nThe schedule is valid\n\n") if schedule_is_valid else print("The schedule is invalid\n\n")
     else:
+        if solving_time >= timeout:
+            print("Timeout reached\n")
         print("No solution found\n")
 
     print("Number of solutions found:",
@@ -146,9 +148,14 @@ def main(argv: argparse.Namespace) -> None:
         file.close()
         sys.stdout = default_stdout
 
-        if status == Status.UNKNOWN:
-            print("Timeout reached\nNot all solutions were found in time\n")
-        elif status == Status.UNSATISFIABLE:
+        if find_all_solutions and (status == Status.ALL_SOLUTIONS or status == Status.SATISFIED):
+            if status == Status.ALL_SOLUTIONS:
+                print("All solutions were found\n")
+            else:
+                print("Timeout reached\nNot all solutions were found in time\n")
+        elif status == Status.UNKNOWN:
+            print("Timeout reached\nNo solution found in time\n")
+        else:
             print("No solution found\n")
 
         print("Number of solutions found:",
