@@ -99,7 +99,6 @@ class GolferConstraintSolver:
     def forwardCheking(self,week,group,player, time_limit):
         
         print(" ---------- Forward Cheking ",week," ",group," ",player, "----------\n")
-        self.printSchedule()
         print(str(time_limit) + " "+ str( datetime.now()))
         if week == self.W :
             return 1, datetime.now()  # La solution est trouvée
@@ -126,11 +125,9 @@ class GolferConstraintSolver:
             if p not in self.schedule[week][group] and p>last_player:
                 # Si consistent on l ajoute et on met a jour les domaines
                 if self.isConsistent(week,group,p):
-                    for p2 in self.schedule[week][group]:
-                        self.rencontres[p].add(p2)
-                        self.rencontres[p2].add(p)
                     self.schedule[week][group].append(p)
                     self.updateDomains()
+                    self.printSchedule()
                     # On passe au joueur suivant par recursivité
                     res = self.forwardCheking(week, group , player+1, time_limit)
                     if res[0] == 1:  # Récursion                        
@@ -181,6 +178,13 @@ class GolferConstraintSolver:
             for group in range(0,self.G): 
                 if len(domains_copy[week][group])<self.P:
                     return False
+                
+        for week in range(self.W):
+            dom = set()
+            for group in range(self.G):
+                dom |= domains_copy[week][group]
+            if len(dom) != self.P*self.G:
+                return False
                 
         return True
 
