@@ -15,13 +15,13 @@ for w in $(seq 1 "$max") ; do
         for s in false true ; do
           for a in false true ; do
             if [[ "$s" == true ]] && [[ "$a" == true ]] ; then
-              exec=$(python ./main.py -w "$w" -g "$g" -p "$p" -m "$m" -s -a -t "$t")
+              exec=$(python ./minizinc_gecode_solver.py -w "$w" -g "$g" -p "$p" -m "$m" -s -a -t "$t")
             elif [[ "$s" == true ]] && [[ "$a" == false ]] ; then
-              exec=$(python ./main.py -w "$w" -g "$g" -p "$p" -m "$m" -s -t "$t")
+              exec=$(python ./minizinc_gecode_solver.py -w "$w" -g "$g" -p "$p" -m "$m" -s -t "$t")
             elif [[ "$s" == false ]] && [[ "$a" == true ]] ; then
-              exec=$(python ./main.py -w "$w" -g "$g" -p "$p" -m "$m" -a -t "$t")
+              exec=$(python ./minizinc_gecode_solver.py -w "$w" -g "$g" -p "$p" -m "$m" -a -t "$t")
             else
-              exec=$(python ./main.py -w "$w" -g "$g" -p "$p" -m "$m" -t "$t")
+              exec=$(python ./minizinc_gecode_solver.py -w "$w" -g "$g" -p "$p" -m "$m" -t "$t")
             fi
 
             n_solutions=$(echo "$exec" | grep "solutions found:" | cut -d' ' -f5)
