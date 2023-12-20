@@ -25,7 +25,7 @@ constraint forall(w in Weeks) (
 
 % A golfer meets at most one time each golfer
 constraint forall(q1, q2 in Golfers where q1 < q2) (
-    sum(w in Weeks, g in Groups)(min(P, card(S[w, g] symdiff {q1, q2}))) >= G * P * W -2
+    sum(w in Weeks, g in Groups)(min(P, card(S[w, g] symdiff {q1, q2}))) >= G*P*W-2
 );
 
 
@@ -41,6 +41,22 @@ constraint forall(w in 1..W-1) (
     forall(g in Groups where g<P) (
           S[w, g] intersect {g} = {g} 
     )
+);
+
+% Constraint on the order where the lowest max will always be first (only for the 1st group)
+constraint forall(w1, w2 in Weeks where w1 < w2) (
+    max(S[w1,0]) <= max(S[w2,0]) 
+);
+
+% Constraint on the order where the lowest min is always first (only for the 1st group)
+constraint forall(w1, w2 in Weeks where w1 < w2 /\ P > 1) (
+    min(S[w1,0] diff {0}) <= min(S[w2,0] diff {0})
+);
+
+% constraint on the order of golfers changing team except the "captains" 
+constraint forall(w1,w2 in Weeks, g1,g2 in 1..G-1 where g2 == g1+1 /\ P > 1 /\ w2 == w1+1) (
+   card(S[w1,g1] intersect S[w2,g2]) > 0 /\ 
+   card(S[w1,G-1] intersect S[w2,1]) > 0
 );
 
 % Solve

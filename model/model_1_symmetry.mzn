@@ -4,15 +4,12 @@ int: W; % The number of weeks
 int: G; % The number of groups
 int: P; % The number of golfers per group
 
-
 % Variables
 int: Q = G * P; % The number of golfers
-int: T = W * G; % The number of matches
 set of int: Golfers = 0..Q-1;
 set of int: Weeks = 0..W-1;
 set of int: Groups = 0..G-1;
 array[Weeks, Groups] of var set of Golfers: S; % The schedule matrix
-% array[0..T-1] of var set of Golfers: M; % The array of all match, corresponding to the matrix S transformed in 1D array matrix
 
 % Constraints
 % P golfers per group
@@ -26,24 +23,12 @@ constraint forall(w in Weeks) (
 
 );
 
- % A golfer meets at most one time each golfer
+% A golfer meets at most one time each golfer
 constraint forall(w1, w2 in Weeks where w1 <= w2) (
     forall(g1 in Groups, g2 in Groups where w1 == w2 -> g1 < g2) (
         card(S[w1,g1] intersect S[w2,g2]) <= 1
     )
 );
-
-/*
-% Correspondence between M and S
-constraint forall(w in Weeks, g in Groups) (
-    M[w*G+g] = S[w,g]
-);
-
-% A golfer meets at most one time each golfer
-constraint forall(m1 in 0..T-2, m2 in 1..T-1 where m1 < m2) (
-    card(M[m1] intersect M[m2]) <= 1
-);
-*/
 
 % Symmetry-breaking constraint for the first week
 constraint forall(g in Groups) (
@@ -59,8 +44,21 @@ constraint forall(w in 1..W-1) (
     )
 );
 
+% Constraint on the order where the lowest max will always be first (only for the 1st group)
+constraint forall(w1, w2 in Weeks where w1 < w2) (
+    max(S[w1,0]) <= max(S[w2,0]) 
+);
+
+% Constraint on the order where the lowest min is always first (only for the 1st group)
+constraint forall(w1, w2 in Weeks where w1 < w2 /\ P > 1) (
+    min(S[w1,0] diff {0}) <= min(S[w2,0] diff {0})
+);
+
+% constraint on the order of golfers changing team except the "captains" 
+constraint forall(w1,w2 in Weeks, g1,g2 in 1..G-1 where g2 == g1+1 /\ P > 1 /\ w2 == w1+1) (
+   card(S[w1,g1] intersect S[w2,g2]) > 0 /\ 
+   card(S[w1,G-1] intersect S[w2,1]) > 0
+);
+
 % Solve
 solve satisfy;
-
-% Output
-

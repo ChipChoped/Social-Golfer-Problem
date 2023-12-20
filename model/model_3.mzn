@@ -28,20 +28,5 @@ constraint forall(q1, q2 in Golfers where q1 < q2) (
     sum(w in Weeks, g in Groups)(min(P, card(S[w, g] symdiff {q1, q2}))) >= G * P * W -2
 );
 
-
-% Symmetry-breaking constraint for the first week
-constraint forall(g in Groups) (
-    forall(i in 0..P-1) (
-        S[0, g] = S[0, g] union {g*P + i}
-    )
-);
-
-% Symmetry-breaking constraint for the first player of all group after week 0
-constraint forall(w in 1..W-1) (
-    forall(g in Groups where g<P) (
-          S[w, g] intersect {g} = {g} 
-    )
-);
-
 % Solve
 solve satisfy;
