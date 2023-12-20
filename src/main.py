@@ -11,6 +11,9 @@ from minizinc import Instance, Model, Solver, Result, Status
 
 
 def print_schedule(schedule: list) -> None:
+    # Print a schedule
+    # schedule: Schedule to print
+
     for i in range(0, len(schedule)):
         print("Week", i, end="")
 
@@ -24,22 +27,39 @@ def print_schedule(schedule: list) -> None:
 
 def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, symmetry_breaking: bool,
                   find_all_solutions: bool, timeout: timedelta) -> tuple[list, Status, timedelta]:
+    # Find a schedule or all schedules possibles for a social golfer problem instance
+    # n_weeks: Number of weeks
+    # n_groups: Number of groups
+    # n_participant: Number of participants per group
+    # model: Model to use (1, 2 or 3)
+    # symmetry_breaking: Flag to use symmetry breaking
+    # find_all_solutions: Flag to find all solutions of an instance
+    # timeout: Timeout in seconds
+    # return: Tuple containing the schedule, the status of the solver and the solving time
+
+    # Initialize the model and the solver
     model: Model = Model("../model/model_" + str(model) + ".mzn") if not symmetry_breaking \
         else Model("../model/model_" + str(model) + "_symmetry.mzn")
     solver: Solver = Solver.lookup("gecode")
 
+    # Set the parameters of the model
     instance: Instance = Instance(solver, model)
     instance["W"] = n_weeks
     instance["G"] = n_groups
     instance["P"] = n_participant
 
+    # Solve the instance
     result: Result = instance.solve(all_solutions=find_all_solutions, timeout=timeout)
 
+    # Check if the instance was solved
+    # Case 1: All solutions were found, or some solutions were found and the solver timed out
     if result.status == Status.ALL_SOLUTIONS \
             or (result.status == Status.SATISFIED and find_all_solutions):
         solution: list = [result.solution[i].S for i in range(len(result.solution))]
+    # Case 2: A solution was found
     elif result.status == Status.SATISFIED and not find_all_solutions:
         solution: list = result.solution.S
+    # Case 3: No solution was found
     else:
         solution: list = []
 
@@ -48,6 +68,12 @@ def find_schedule(n_weeks: int, n_groups: int, n_participant: int, model: int, s
 
 
 def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
+    # Verify if a schedule is valid
+    # schedule: Schedule to verify
+    # n_group: Number of groups
+    # n_participant: Number of participants per group
+    # return: True if the schedule is valid, False otherwise
+
     def find_subsets(set_: set, subset_size: int):
         return list(itertools.combinations(set_, subset_size))
 
@@ -80,6 +106,7 @@ def verify_schedule(schedule: list, n_group: int, n_participant: int) -> bool:
 
 
 def main(argv: argparse.Namespace) -> None:
+    # Initialize the parameters
     n_weeks: int = argv.weeks
     n_groups: int = argv.groups
     n_participants: int = argv.participants
@@ -93,8 +120,9 @@ def main(argv: argparse.Namespace) -> None:
         else None
 
     check_validity: bool = argv.check_validity
-    log: bool = argv.log
+    log: bool = argv.log  # Flag to log in a file the solver output
 
+    # Get the solver result
     schedule, status, solving_time = find_schedule(n_weeks, n_groups, n_participants, model,
                                                    symmetry_breaking, find_all_solutions, timeout)
 
@@ -167,6 +195,7 @@ def main(argv: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
+    # Parse the arguments
     parser = argparse.ArgumentParser(
         prog='Social Golfer Problem Solver',
         description='This solver finds one or multiple schedules for a social golfer problem instance')
